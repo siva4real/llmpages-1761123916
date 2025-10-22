@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Project Validator and Links</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Minimal validator and hub for required project files" />
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #171b22;
+      --muted: #9aa4b2;
+      --text: #e5e7eb;
+      --accent: #66c2a5;
+      --warn: #ffca3a;
+      --error: #ef4444;
+      --ok: #22c55e;
+      --link: #7cb9ff;
+      --border: #242a33;
+      --code: #0b0e13;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      padding: 24px 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      letter-spacing: 0.2px;
+    }
+    header p { margin: 0; color: var(--muted); }
+    .container { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 820px) {
+      .row.two { grid-template-columns: 1fr 1fr; }
+      .row.three { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    .controls input[type="url"] {
+      flex: 1 1 420px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      outline: none;
+    }
+    .controls button {
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #0b0f14;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .controls button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .file-list a {
+      display: block;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .status {
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .status .icon { font-size: 16px; line-height: 20px; margin-top: 2px; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--error); }
+    code, pre {
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+    }
+    code { padding: 2px 6px; }
+    pre { padding: 10px; overflow: auto; }
+    .kvs { display: grid; grid-template-columns: 170px 1fr; gap: 8px 10px; }
+    .small { font-size: 12px; }
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); background: var(--bg); }
+    .svg-preview {
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Required Files — Links and Validator</h1>
+      <p>Minimal, test-focused page that links to all required assets and validates their content. Supports ?url=... to validate a remote GitHub Pages site.</p>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="panel">
+      <div class="controls">
+        <input id="baseUrl" type="url" placeholder="https://your-user.github.io/your-repo/" />
+        <button id="runBtn">Run Checks</button>
+        <button id="useHereBtn" class="secondary" title="Use current location as base URL">Use this site</button>
+        <button id="copyUrlBtn" class="secondary" title="Copy URL with ?url=... for sharing">Copy shareable link</button>
+      </div>
+      <p class="small muted" id="baseInfo"></p>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top: 0">Files</h3>
+      <div class="row two file-list" id="fileLinks"></div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top: 0">Validation Results</h3>
+      <div id="results"></div>
+      <div id="overall"></div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top: 0">Pelican SVG Viewer & LLM-style Rating</h3>
+      <div class="row two">
+        <div>
+          <div id="svgContainer" class="svg-preview">No SVG loaded yet.</div>
+        </div>
+        <div>
+          <div class="kvs small">
+            <div>Rating</div><div id="svgRating" class="pill muted">—</div>
+            <div>Verdict</div><div id="svgVerdict" class="pill muted">—</div>
+            <div>Notes</div><div id="svgNotes" class="muted">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      This page is self-contained and uses no external libraries. Built for automated checks and quick human review.
+    </footer>
+  </div>
+
+  <script>
+    // Utility: get query param
+    function getParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
+    // Ensure base URL ends with a slash
+    function normalizeBase(url) {
+      if (!url) return "";
+      if (!url.endsWith("/")) url += "/";
+      return url;
+    }
+    // Compute SHA-256 hex of string
+    async function sha256(text) {
+      const enc = new TextEncoder().encode(text);
+      const hashBuf = await crypto.subtle.digest("SHA-256", enc);
+      const bytes = Array.from(new Uint8Array(hashBuf));
+      return bytes.map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    // Simple word count
+    function wordCount(text) {
+      const words = text.trim().replace(/\s+/g, " ").match(/[^\s]+/g);
+      return words ? words.length : 0;
+    }
+    // Heuristic LLM-style SVG rating
+    function rateSvg(svgText) {
+      let score = 0;
+      const feats = [];
+      if (/<svg[\s>]/i.test(svgText)) { score += 3; feats.push("valid <svg> root"); }
+      if (/<circle/i.test(svgText)) { score += 2; feats.push("circles (likely wheels)"); }
+      if ((svgText.match(/<circle/gi) || []).length >= 2) { score += 1; feats.push("two+ wheels detected"); }
+      if (/<path/i.test(svgText)) { score += 2; feats.push("paths (complex shapes)"); }
+      if (/<polygon|<polyline|<ellipse/i.test(svgText)) { score += 1; feats.push("polygons/ellipses"); }
+      if (/beak|wing|pelican/i.test(svgText)) { score += 1; feats.push("pelican-related keywords"); }
+      if (/bike|bicycle|wheel/i.test(svgText)) { score += 1; feats.push("bicycle-related keywords"); }
+      if (score > 10) score = 10;
+      const verdict = score >= 7 ? "Pass" : "Needs improvement";
+      const notes = "Heuristic LLM-style score based on presence of vector elements and themed keywords: " + feats.join(", ") + ".";
+      return { score, verdict, notes };
+    }
+
+    const REQUIRED = [
+      { id: "ashravan.txt", label: "Ashravan Story (300–400 words)", href: "ashravan.txt",
+        validate: async (txt) => {
+          const wc = wordCount(txt);
+          const hasNames = /Ashravan/i.test(txt) && /Shai/i.test(txt);
+          const okRange = wc >= 300 && wc <= 400;
+          const msgs = [];
+          msgs.push(`Word count: ${wc} (expected 300–400)`);
+          msgs.push(`Mentions Ashravan & Shai: ${hasNames ? "yes" : "no"}`);
+          return {
+            pass: okRange && hasNames,
+            level: okRange && hasNames ? "ok" : "err",
+            message: msgs.join(" · "),
+          };
+        }
+      },
+      { id: "dilemma.json", label: "Autonomous Vehicle Dilemma JSON", href: "dilemma.json",
+        validate: async (txt) => {
+          try {
+            const j = JSON.parse(txt);
+            const shape =
+              j && j.people === 3 &&
+              j.case_1 && typeof j.case_1.swerve === "boolean" && typeof j.case_1.reason === "string" &&
+              j.case_2 && typeof j.case_2.swerve === "boolean" && typeof j.case_2.reason === "string";
+            return {
+              pass: !!shape,
+              level: shape ? "ok" : "err",
+              message: shape ? "Valid structure detected" : "Invalid structure: expected people=3 and case_1/case_2 with {swerve:boolean, reason:string}"
+            };
+          } catch (e) {
+            return { pass: false, level: "err", message: "Invalid JSON: " + e.message };
+          }
+        }
+      },
+      { id: "about.md", label: "About (exactly three words)", href: "about.md",
+        validate: async (txt) => {
+          const words = (txt.trim().match(/\S+/g) || []);
+          const ok = words.length === 3;
+          return {
+            pass: ok,
+            level: ok ? "ok" : "err",
+            message: ok ? `3 words: “${words.join(" ")}”` : `Found ${words.length} word(s). Must be exactly three words.`,
+          };
+        }
+      },
+      { id: "pelican.svg", label: "Pelican Riding a Bicycle (SVG)", href: "pelican.svg",
+        validate: async (txt) => {
+          const looksSvg = /^\s*<svg[\s>]/i.test(txt);
+          const hasCircles = /<circle\b/i.test(txt);
+          const hasPaths = /<path\b/i.test(txt);
+          const r = rateSvg(txt);
+          // Show in viewer
+          const cont = document.getElementById("svgContainer");
+          cont.innerHTML = looksSvg ? txt : "<div class='muted small'>Invalid SVG</div>";
+          document.getElementById("svgRating").textContent = `${r.score}/10`;
+          document.getElementById("svgVerdict").textContent = r.verdict;
+          document.getElementById("svgNotes").textContent = r.notes;
+          const pass = looksSvg && (hasCircles || hasPaths);
+          return {
+            pass,
+            level: pass ? "ok" : "err",
+            message: `Valid SVG root: ${looksSvg ? "yes" : "no"} · Elements: ${hasCircles ? "circle " : ""}${hasPaths ? "path" : ""} · LLM rating: ${r.score}/10 (${r.verdict})`
+          };
+        }
+      },
+      { id: "restaurant.json", label: "Restaurant Recommendation (Delhi)", href: "restaurant.json",
+        validate: async (txt) => {
+          try {
+            const j = JSON.parse(txt);
+            const basic = j && j.city === "Delhi" && typeof j.lat === "number" && typeof j.long === "number" && j.name && j.what_to_eat;
+            let geoOk = false;
+            if (basic) {
+              const lat = j.lat, lon = j.long;
+              // Rough bounding box for Delhi region
+              geoOk = lat >= 28.3 && lat <= 28.9 && lon >= 76.8 && lon <= 77.5;
+            }
+            return {
+              pass: !!(basic && geoOk),
+              level: basic && geoOk ? "ok" : "err",
+              message: basic ? (geoOk ? `City: ${j.city} · Name: ${j.name} · Coords OK` : `Coordinates out of expected Delhi range`) : "Missing or invalid fields (city, lat, long, name, what_to_eat)"
+            };
+          } catch (e) {
+            return { pass: false, level: "err", message: "Invalid JSON: " + e.message };
+          }
+        }
+      },
+      { id: "prediction.json", label: "Fed Funds Rate Prediction (Dec 2025)", href: "prediction.json",
+        validate: async (txt) => {
+          try {
+            const j = JSON.parse(txt);
+            const rateOk = typeof j.rate === "number" && j.rate >= 0 && j.rate <= 1;
+            const reasonOk = typeof j.reason === "string" && j.reason.trim().length >= 20;
+            // Soft sanity: plausible 0–10% range for Dec 2025
+            const plausible = rateOk && j.rate >= 0 && j.rate <= 0.10;
+            const level = rateOk && reasonOk && plausible ? "ok" : (rateOk && reasonOk ? "warn" : "err");
+            const pass = rateOk && reasonOk;
+            return {
+              pass,
+              level,
+              message: `Rate: ${rateOk ? j.rate : "invalid"} · Reason length: ${reasonOk ? j.reason.length : 0} · Plausible: ${plausible ? "yes" : "no"}`
+            };
+          } catch (e) {
+            return { pass: false, level: "err", message: "Invalid JSON: " + e.message };
+          }
+        }
+      },
+      { id: "LICENSE", label: "MIT License", href: "LICENSE",
+        validate: async (txt) => {
+          const hasMIT = /MIT License/i.test(txt);
+          const hasGrant = /Permission is hereby granted, free of charge/i.test(txt);
+          const pass = hasMIT && hasGrant;
+          return { pass, level: pass ? "ok" : "err", message: `Contains "MIT License": ${hasMIT ? "yes" : "no"} · Contains permission grant: ${hasGrant ? "yes" : "no"}` };
+        }
+      },
+      { id: "uid.txt", label: "UID (must match attachment)", href: "uid.txt",
+        validate: async (txt) => {
+          const len = txt.length;
+          const hash = await sha256(txt);
+          return {
+            pass: len > 0,
+            level: len > 0 ? "ok" : "err",
+            message: `Fetched ${len} chars · SHA-256: ${hash}`
+          };
+        }
+      }
+    ];
+
+    function buildFileLinks(base) {
+      const wrap = document.getElementById("fileLinks");
+      wrap.innerHTML = "";
+      REQUIRED.forEach(r => {
+        const a = document.createElement("a");
+        a.href = base + r.href;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = r.id + " — " + r.label;
+        wrap.appendChild(a);
+      });
+    }
+
+    function statusLine({ id, label, icon, cls, details, linkHref }) {
+      const div = document.createElement("div");
+      div.className = "status";
+      const i = document.createElement("div");
+      i.className = "icon " + cls;
+      i.textContent = icon;
+      const body = document.createElement("div");
+      const title = document.createElement("div");
+      title.innerHTML = `<strong>${id}</strong> <span class="muted">— ${label}</span>`;
+      const det = document.createElement("div");
+      det.className = "small muted";
+      det.textContent = details;
+      body.appendChild(title);
+      body.appendChild(det);
+      const link = document.createElement("div");
+      link.innerHTML = `<a href="${linkHref}" target="_blank" rel="noopener">open</a>`;
+      div.appendChild(i);
+      div.appendChild(body);
+      div.appendChild(link);
+      return div;
+    }
+
+    async function runChecks() {
+      const base = normalizeBase(document.getElementById("baseUrl").value.trim() || "./");
+      history.replaceState(null, "", `?url=${encodeURIComponent(base)}`);
+      document.getElementById("baseInfo").textContent = `Base URL: ${base}`;
+      buildFileLinks(base);
+      const resultsWrap = document.getElementById("results");
+      resultsWrap.innerHTML = "";
+
+      const statuses = [];
+
+      for (const r of REQUIRED) {
+        const href = base + r.href;
+        let icon = "…", cls = "muted", details = "Fetching…", pass = false;
+        try {
+          const res = await fetch(href, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const text = await res.text();
+          const verdict = await r.validate(text);
+          pass = !!verdict.pass;
+          cls = verdict.level || (pass ? "ok" : "err");
+          icon = pass ? "✓" : (cls === "warn" ? "!" : "✗");
+          details = verdict.message || (pass ? "OK" : "Check failed");
+        } catch (e) {
+          icon = "✗";
+          cls = "err";
+          details = "Fetch/validation error: " + e.message;
+        }
+        statuses.push({ id: r.id, pass, cls });
+        resultsWrap.appendChild(statusLine({
+          id: r.id, label: r.label, icon, cls, details, linkHref: href
+        }));
+      }
+
+      const allOk = statuses.every(s => s.pass || s.cls === "warn");
+      const criticalFail = statuses.some(s => s.cls === "err");
+      const overall = document.getElementById("overall");
+      overall.innerHTML = "";
+      const box = document.createElement("div");
+      box.className = "status";
+      const icon = document.createElement("div");
+      icon.className = "icon " + (allOk && !criticalFail ? "ok" : (criticalFail ? "err" : "warn"));
+      icon.textContent = allOk && !criticalFail ? "✓" : (criticalFail ? "✗" : "!");
+      const body = document.createElement("div");
+      const title = document.createElement("div");
+      title.innerHTML = `<strong>Overall</strong> <span class="muted">— ${(allOk && !criticalFail) ? "All required checks passed (warnings acceptable)" : (criticalFail ? "Failures detected" : "Warnings present")}</span>`;
+      const det = document.createElement("div");
+      det.className = "small muted";
+      const okCt = statuses.filter(s => s.cls === "ok").length;
+      const warnCt = statuses.filter(s => s.cls === "warn").length;
+      const errCt = statuses.filter(s => s.cls === "err").length;
+      det.textContent = `OK: ${okCt} · Warnings: ${warnCt} · Errors: ${errCt}`;
+      body.appendChild(title);
+      body.appendChild(det);
+      const link = document.createElement("div");
+      link.innerHTML = `<span class="pill">?url support</span>`;
+      box.appendChild(icon);
+      box.appendChild(body);
+      box.appendChild(link);
+      overall.appendChild(box);
+    }
+
+    // Initialize
+    (function init() {
+      const here = location.origin + location.pathname.replace(/[^/]*$/, "");
+      const qUrl = getParam("url");
+      const baseDefault = normalizeBase(qUrl || here);
+      const input = document.getElementById("baseUrl");
+      input.value = baseDefault;
+      document.getElementById("baseInfo").textContent = `Base URL: ${baseDefault}`;
+      buildFileLinks(baseDefault);
+
+      document.getElementById("runBtn").addEventListener("click", runChecks);
+      document.getElementById("useHereBtn").addEventListener("click", () => {
+        document.getElementById("baseUrl").value = normalizeBase(here);
+        runChecks();
+      });
+      document.getElementById("copyUrlBtn").addEventListener("click", async () => {
+        const url = new URL(location.href);
+        url.searchParams.set("url", document.getElementById("baseUrl").value.trim());
+        try {
+          await navigator.clipboard.writeText(url.toString());
+          alert("Copied shareable link to clipboard.");
+        } catch {
+          prompt("Copy this URL:", url.toString());
+        }
+      });
+      document.getElementById("baseUrl").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runChecks();
+      });
+
+      // Auto-run on load for convenience
+      runChecks().catch(console.error);
+    })();
+  </script>
+</body>
+</html>
